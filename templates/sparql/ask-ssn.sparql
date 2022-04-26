@@ -1,0 +1,19 @@
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+PREFIX persoon: <https://data.vlaanderen.be/ns/persoon#>
+PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+PREFIX person: <http://www.w3.org/ns/person#>
+
+ASK WHERE {
+  GRAPH <{{graph}}> {
+    ?gsIdentificator <https://data.vlaanderen.be/ns/generiek#lokaleIdentificator> ?lokaleIdentificator.
+    ?registrationId <https://data.vlaanderen.be/ns/generiek#gestructureerdeIdentificator> ?gsIdentificator.
+    ?person <https://data.vlaanderen.be/ns/persoon#registratie> ?registrationId.
+  }
+  graph ?g {
+     ?person a ?type;
+             mu:uuid ?id.
+  }
+   FILTER(?lokaleIdentificator = "{{ssn}}" && ?type = person:Person && ?id != "{{personId}}").
+
+}

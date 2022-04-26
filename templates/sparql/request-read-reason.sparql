@@ -1,0 +1,18 @@
+
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+PREFIX persoon: <https://data.vlaanderen.be/ns/persoon#>
+PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+{{uuid "reasonId"}}
+
+INSERT DATA {
+    graph <{{graph}}> {
+          <http://data.lblod.info/id/person-information-reads/{{reasonId}}>  a ext:PersonInformationRead;
+                                                           mu:uuid "{{reasonId}}";
+                                                           ext:date "{{time}}"^^xsd:dateTime;
+                                                           ext:requester  <{{accountUri}}>;
+                                                           ext:person <http://data.lblod.info/id/personen/{{personId}}> ;
+                                                           ext:code  <{{code}}>.
+   }
+}

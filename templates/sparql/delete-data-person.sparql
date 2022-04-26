@@ -1,0 +1,46 @@
+
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+PREFIX persoon: <https://data.vlaanderen.be/ns/persoon#>
+PREFIX ext: <http://mu.semte.ch/vocabularies/ext/>
+
+
+DELETE {
+  GRAPH <{{graph}}> {
+      <http://data.lblod.info/id/personen/{{personId}}> persoon:heeftGeboorte ?heeftGeboorte.
+      ?heeftGeboorte ?p ?o.
+
+       <http://data.lblod.info/id/personen/{{personId}}>  <https://data.vlaanderen.be/ns/persoon#registratie> ?registration.
+       ?registration <https://data.vlaanderen.be/ns/generiek#gestructureerdeIdentificator> ?identificator.
+       ?identificator ?x ?y.
+       ?registration ?t ?j.
+
+       <http://data.lblod.info/id/personen/{{personId}}>  <https://data.vlaanderen.be/ns/persoon#geslacht> ?geslacht.
+
+       <http://data.lblod.info/id/personen/{{personId}}>  <https://data.vlaanderen.be/ns/persoon#heeftNationaliteit> ?nationaliteit.
+  }
+}
+WHERE  {
+  GRAPH <{{graph}}> {
+      optional {
+        <http://data.lblod.info/id/personen/{{personId}}> persoon:heeftGeboorte  ?heeftGeboorte.
+        ?heeftGeboorte ?p ?o.
+      }
+
+      optional {
+        <http://data.lblod.info/id/personen/{{personId}}>  <https://data.vlaanderen.be/ns/persoon#registratie> ?registration.
+        ?registration <https://data.vlaanderen.be/ns/generiek#gestructureerdeIdentificator> ?identificator.
+        ?identificator ?x ?y.
+        ?registration ?t ?j.
+      }
+
+        optional {
+          <http://data.lblod.info/id/personen/{{personId}}>  <https://data.vlaanderen.be/ns/persoon#geslacht> ?geslacht.
+        }
+
+        optional {
+          <http://data.lblod.info/id/personen/{{personId}}>  <https://data.vlaanderen.be/ns/persoon#heeftNationaliteit> ?nationaliteit.
+        }
+  }
+
+}

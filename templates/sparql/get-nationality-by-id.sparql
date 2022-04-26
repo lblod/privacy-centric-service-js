@@ -1,0 +1,4 @@
+PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+select ?nationality where {
+  ?nationality mu:uuid "{{nationalityId}}".
+}
