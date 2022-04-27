@@ -1,4 +1,0 @@
-PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
-select ?reasonUri where {
-  ?reasonUri mu:uuid "{{reasonId}}".
-}

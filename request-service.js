@@ -1,6 +1,18 @@
-import { getSparqlTemplate, getJsonApiTemplate } from "./template-util";
 import { querySudo as query, updateSudo as update } from "@lblod/mu-auth-sudo";
-import { v4 as uuid } from "uuid";
+import { uuid } from "mu";
+
+import {
+  askSsn,
+  deleteDataPerson,
+  getAccount,
+  getGenderById,
+  getReasonById,
+  requestReadReason,
+  getNationalityById,
+  getPersonInfo,
+  getPersonNationalities,
+  insertDataPerson,
+} from "./queries";
 
 const DEFAULT_GRAPH_URI =
   process.env.DEFAULT_GRAPH ||
@@ -34,27 +46,25 @@ export class RequestService {
     if (nationalities?.data?.length) {
       const nationaliteits = [];
       for (const nationality of nationalities.data) {
-        let q = getSparqlTemplate("get-nationality-by-id", {
-          nationalityId: nationality.id,
-        });
+        let q = getNationalityById(nationality.id);
+
         let queryResult = await query(q);
         if (queryResult.results.bindings.length) {
           let result = queryResult.results.bindings[0];
           let nat = result.nationality?.value;
-         
+
           if (nat?.length) {
             nationaliteits.push(nat);
           }
         }
       }
-      
-      parameters.nationaliteits = nationaliteits;
+
+      parameters.nationalities = nationaliteits;
     }
 
     if (gender?.data?.id) {
-      let q = getSparqlTemplate("get-gender-by-id", {
-        genderId: gender.data.id,
-      });
+      let q = getGenderById(gender.data.id);
+
       let queryResult = await query(q);
 
       if (queryResult.results.bindings.length) {
@@ -76,24 +86,23 @@ export class RequestService {
         parameters.dateOfBirth = dateOfBirth;
       }
 
-      let deleteDataPersonQuery = getSparqlTemplate("delete-data-person", {
-        personId,
-        graph: DEFAULT_GRAPH_URI,
-      });
+      let deleteDataPersonQuery = deleteDataPerson(DEFAULT_GRAPH_URI, personId);
+
       await update(deleteDataPersonQuery);
 
       if (Object.keys(parameters).length !== 0) {
         let reasonUri = await this.getReasonUri(reasonId);
-        parameters.personId = personId;
-        parameters.graph = DEFAULT_GRAPH_URI;
-        parameters.time = new Date().toISOString();
-        parameters.accountUri = accountUri;
-        parameters.code = reasonUri;
-        let insertDataPerson = getSparqlTemplate(
-          "insert-data-person",
-          parameters
+        let insertDataPersonQuery = insertDataPerson(
+          DEFAULT_GRAPH_URI,
+          accountUri,
+          personId,
+          reasonUri,
+          parameters.dateOfBirth,
+          parameters.registration,
+          parameters.gender,
+          parameters.nationalities
         );
-        await update(insertDataPerson);
+        await update(insertDataPersonQuery);
       }
     }
   }
@@ -118,7 +127,8 @@ export class RequestService {
       );
     }
     responseBuilder.type = "person-information-asks";
-    return getJsonApiTemplate("person-information", responseBuilder);
+
+    return this.getResponse(responseBuilder);
   }
 
   async processRead(request, sessionId) {
@@ -138,16 +148,15 @@ export class RequestService {
     responseBuilder.type = "person-information-requests";
 
     let reasonUri = await this.getReasonUri(reasonId);
-    let requestReadReasonQuery = getSparqlTemplate("request-read-reason", {
-      graph: DEFAULT_GRAPH_URI,
-      appGraph: APP_GRAPH_URI,
-      personId,
-      code: reasonUri,
-      time: new Date().toISOString(),
+    let requestReadReasonQuery = requestReadReason(
+      DEFAULT_GRAPH_URI,
       accountUri,
-    });
+      personId,
+      reasonUri
+    );
+
     await update(requestReadReasonQuery);
-    return getJsonApiTemplate("person-information", responseBuilder);
+    return this.getResponse(responseBuilder);
   }
 
   async getReasonUri(reasonId) {
@@ -174,9 +183,10 @@ export class RequestService {
       appGraph: APP_GRAPH_URI,
       personId,
     };
-    let getPersonInfoQuery = getSparqlTemplate(
-      "get-person-info",
-      queryParameters
+    let getPersonInfoQuery = getPersonInfo(
+      queryParameters.graph,
+      queryParameters.appGraph,
+      queryParameters.personId
     );
 
     let queryResult = await query(getPersonInfoQuery);
@@ -187,25 +197,23 @@ export class RequestService {
       responseBuilder.registrationNumber = result.registrationNumber?.value;
       responseBuilder.genderId = result.genderId?.value;
     }
-    let getPersonNationalitiesQuery = getSparqlTemplate(
-      "get-person-nationalities",
-      queryParameters
+    let getPersonNationalitiesQuery = getPersonNationalities(
+      queryParameters.graph,
+      queryParameters.appGraph,
+      queryParameters.personId
     );
     let queryResultNationalities = await query(getPersonNationalitiesQuery);
-   
     responseBuilder.nationalities = queryResultNationalities.results.bindings
       .map((n) => n.nationaliteitId?.value)
       .filter((n) => n?.length > 0);
-    
     return responseBuilder;
   }
 
   async getReasonUri(reasonId) {
     checkNotEmpty(reasonId, "reasonId cannot be null!");
 
-    let getReasonCodeUriQuery = getSparqlTemplate("get-reason-by-id", {
-      reasonId,
-    });
+    let getReasonCodeUriQuery = getReasonById(reasonId);
+
     let queryResult = await query(getReasonCodeUriQuery);
     if (queryResult.results.bindings.length) {
       const result = queryResult.results.bindings[0];
@@ -219,10 +227,7 @@ export class RequestService {
 
   async getAccountBySession(sessionId) {
     checkNotEmpty(sessionId, "No session id!");
-    let getAccountQuery = getSparqlTemplate("get-account", {
-      sessionId,
-      sessionGraphUri: SESSION_GRAPH_URI,
-    });
+    let getAccountQuery = getAccount(SESSION_GRAPH_URI, sessionId);
     const queryResult = await query(getAccountQuery);
     if (queryResult.results.bindings.length) {
       const result = queryResult.results.bindings[0];
@@ -254,13 +259,89 @@ export class RequestService {
   }
 
   async validateRn(personId, ssn) {
-    let askSsnQuery = getSparqlTemplate("ask-ssn", {
-      personId,
-      ssn,
-      graph: DEFAULT_GRAPH_URI,
-    });
+    let askSsnQuery = askSsn(DEFAULT_GRAPH_URI, ssn, personId);
     const queryResult = await query(askSsnQuery);
 
     return !queryResult?.boolean;
+  }
+
+  getResponse(responseBuilder) {
+    let id = uuid();
+    let registrationNumberAttribute = null;
+    if (responseBuilder.registrationNumber) {
+      registrationNumberAttribute = `"registration": "${responseBuilder.registrationNumber}" `;
+    }
+    let dateOfBirthAttribute = null;
+    if (responseBuilder.dateOfBirth) {
+      dateOfBirthAttribute = `"date-of-birth": "${responseBuilder.dateOfBirth}" `;
+    }
+    let attributes = [dateOfBirthAttribute, registrationNumberAttribute]
+      .filter((f) => f?.length > 0)
+      .join(",");
+
+    let genderRelationship = null;
+    if (responseBuilder.genderId) {
+      genderRelationship = `
+      "gender": {
+        "data": {
+          "type": "genders",
+          "id": "${responseBuilder.genderId}"
+        }
+      }
+      `;
+    }
+    let reasonRelationship = null;
+    if (responseBuilder.reasonId) {
+      reasonRelationship = `
+      "reason": {
+        "data": {
+          "type": "request-reasons",
+          "id": "${responseBuilder.reasonId}"
+        }
+      }
+      `;
+    }
+    let nationalitiesRelationship = null;
+    if (responseBuilder.nationalities?.length) {
+      let nationalityJsonApi =     responseBuilder.nationalities
+      .map((nationality) => {
+        return `
+          {
+            "type": "nationalities",
+            "id": "${nationality}"
+          }
+    `;
+      })
+      .join(",");
+      nationalitiesRelationship =
+        `"nationalities":{
+            "data" : [
+              ${nationalityJsonApi}
+            ]
+
+        }`;
+    }
+    let relationships = [
+      nationalitiesRelationship,
+      genderRelationship,
+      reasonRelationship,
+    ]
+      .filter((f) => f?.length > 0)
+      .join(",");
+
+    return `
+    {
+      "data": {
+        "type": "${responseBuilder.type}",
+        "id": "${id}",
+        "attributes": {
+         ${attributes}
+        },
+        "relationships": {
+          ${relationships}
+        }
+      }
+    }
+    `;
   }
 }

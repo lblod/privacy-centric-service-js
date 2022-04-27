@@ -4,30 +4,6 @@ POC Javascript version of privacy-centric-service.
 
 ## WORK IN PROGRESS
 
-
-### Usage
-
-```
-  privacy:
-    image: semtech/mu-javascript-template:1.6.0
-    labels:
-      - "logging=true"
-    volumes:
-      - /home/nbittich/lblod/privacy-centric-service-js/:/app
-      - /home/nbittich/lblod/privacy-centric-service-js/templates:/templates # this is required
-    environment:
-      NODE_ENV: "development"
-      DEFAULT_GRAPH: "http://mu.semte.ch/graphs/privacy-centric-graph"
-      SESSION_GRAPH: "http://mu.semte.ch/graphs/sessions"
-      APP_GRAPH: "http://mu.semte.ch/graphs/organisatieportaal"
-    labels:
-      - "logging=true"
-    #restart: never
-    logging: *default-logging
-    links:
-      - db:database
-```
-
 Some resources are extra protected. We should supply a reason when reading or updating them.
 
 A separate service will be used for updating and reading this data. It will only allow to update/read the data when a
