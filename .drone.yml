@@ -1,0 +1,67 @@
+---
+kind: pipeline
+type: docker
+name: verify-pr
+steps:
+- name: build-dry-run
+  image: plugins/docker
+  settings:
+    repo: lblod/privacy-centric-service-v2
+    dry_run: true
+    purge: true
+trigger:
+  event:
+    - pull_request
+---
+kind: pipeline
+type: docker
+name: push-latest-build
+steps:
+- name: push-latest-build
+  image: plugins/docker
+  settings:
+    repo: lblod/privacy-centric-service-v2
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+    purge: true
+trigger:
+  branch:
+    - master
+---
+kind: pipeline
+type: docker
+name: release
+steps:
+- name: build-dry-run
+  image: plugins/docker
+  settings:
+    repo: lblod/privacy-centric-service-v2
+    dry_run: true
+    purge: true
+- name: push-tagged-build
+  image: plugins/docker
+  settings:
+    repo: lblod/privacy-centric-service-v2
+    tags: ${DRONE_TAG##v}
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+    purge: true
+trigger:
+  event:
+    - tag---
+kind: secret
+name: docker_username
+data: EyLXEnijCfRTylxzOA9C/cUIgOPTSdG7M122QOmWJI7PQ9azFS8q5Q==
+---
+kind: secret
+name: docker_password
+data: RjkT7udPiY+KfGf1bo/unXKPsbijHviav9NVmp3JJl/YTZZLEphMvJAYO2lKftSvx8MzD34SSCVilKq/NuzFzg==
+---
+kind: signature
+hmac: c56bed6192abed9f6faafffcb4fc9405cc68ab704daf73a58cb213a242402c68
+
+...
